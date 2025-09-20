@@ -12,3 +12,4 @@ echo "访问 http://localhost 查看应用"
 echo "访问 http://localhost/health 查看健康检查"
 docker-compose ps | findstr /i "!DOCKER_IMAGE_NAME!" | findstr /v "findstr"
 endlocal
+pause
