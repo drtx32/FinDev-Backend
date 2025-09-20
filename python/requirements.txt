@@ -1,0 +1,20 @@
+# 基础依赖
+fastapi>=0.95.0
+uvicorn>=0.21.1
+requests>=2.28.2
+python-dotenv>=1.0.0
+
+# 数据库依赖
+mysql-connector-python>=8.0.32
+sqlalchemy>=2.0.5
+
+# Redis依赖
+redis>=4.5.1
+
+# 其他可能需要的依赖
+# pandas>=2.2.3
+# numpy>=1.26.4
+# pydantic>=2.10.3
+
+# 本地tar.gz包
+./local_packages/ashare_core-1.0.6a0.tar.gz

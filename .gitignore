@@ -1,0 +1,26 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# VSCode settings
+.vscode/
+
+# 环境文件
+.env
+
+# 日志文件
+*.log
+
+# 虚拟环境
+venv/
+ENV/
+env/
+
+# Docker volumes
+mysql-data/
+redis-data/
+
+# Custom ignore rules
+python/local_packages/*

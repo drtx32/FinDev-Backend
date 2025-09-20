@@ -1,0 +1,81 @@
+services:
+  python:
+    build:
+      context: ./python
+      dockerfile: Dockerfile
+    volumes:
+      - ./python/app:/app
+    environment:
+      - PYTHONUNBUFFERED=1
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - MYSQL_HOST=mysql
+      - MYSQL_PORT=3306
+      - MYSQL_USER=appuser
+      - MYSQL_PASSWORD=apppass
+      - MYSQL_DB=appdb
+    depends_on:
+      - mysql
+      - redis
+    dns:
+      - 8.8.8.8
+      - 114.114.114.114
+    ports:
+      - "8000:8000"
+    networks:
+      - app-network
+    restart: unless-stopped
+
+  mysql:
+    image: mysql:8.0
+    container_name: mysql-service
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql-data:/var/lib/mysql
+      - ./mysql/init.sql:/docker-entrypoint-initdb.d/init.sql  # 初始化脚本
+    environment:
+      - MYSQL_ROOT_PASSWORD=rootpass
+      - MYSQL_DB=appdb
+      - MYSQL_USER=appuser
+      - MYSQL_PASSWORD=apppass
+    networks:
+      - app-network
+    restart: unless-stopped
+
+  redis:
+    image: redis:alpine
+    container_name: redis-service
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    networks:
+      - app-network
+    restart: unless-stopped
+
+  # Nginx服务
+  nginx:
+    image: nginx:alpine
+    container_name: nginx-service
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/conf:/etc/nginx/conf.d
+      - ./nginx/ssl:/etc/nginx/ssl  # SSL证书目录
+      - ./app/static:/var/www/static  # 静态文件目录
+      - ./app/media:/var/www/media    # 媒体文件目录
+    depends_on:
+      - python
+    networks:
+      - app-network
+    restart: unless-stopped
+
+networks:
+  app-network:
+    driver: bridge
+
+volumes:
+  mysql-data:
+  redis-data:
