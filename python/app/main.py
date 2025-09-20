@@ -81,7 +81,7 @@ def get_session_manager(request: Request) -> SessionManager:
 
 @app.get("/")
 def read_root() -> dict[str, str]:
-    return {"message": "Hello, World! This is a Python service with MySQL and Redis"}
+    return {"message": "Hello, World! This is FinDev-Backend."}
 
 
 @app.get("/health")
