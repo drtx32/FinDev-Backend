@@ -113,7 +113,7 @@ def health_check(services=Depends(get_services)) -> dict[str, Any]:
     }
 
 
-@app.get("/em_guba/stock_history_rank/{symbol}")
+@app.get("/em_guba/stock_history_rank")
 def crawl_em_stock_history_rank(
     symbol: str,
     session=Depends(get_session_manager)
@@ -183,7 +183,7 @@ def crawl_ths_hot_plate_circle(
     }
 
 
-@app.get("/ths_web/stock/{symbol}")
+@app.get("/ths_web/stock")
 def crawl_ths_stock(
     symbol: str,
     period: Literal[
@@ -228,7 +228,7 @@ def crawl_ths_stock(
     }
 
 
-@app.get("/em_web/stock/{symbol}")
+@app.get("/em_web/stock")
 def crawl_em_stock(
     symbol: str,
     period: Literal[
@@ -316,9 +316,9 @@ def crawl_jyhf_theme(
     }
 
 
-@app.get("/jyhf_app/theme_detail/{theme_id}")
+@app.get("/jyhf_app/theme_detail")
 def crawl_jyhf_theme_detail(
-    theme_id: str,
+    id: str,
     date: str = None,
     index: int = 0,
     pagesize: int = 1201,
@@ -329,7 +329,7 @@ def crawl_jyhf_theme_detail(
 ) -> dict[str, Any]:
     session: SessionManager
     data = jyhf_app.themeStockPerformance(
-        theme_id=theme_id,
+        theme_id=id,
         date=date,
         index=index,
         pagesize=pagesize,
@@ -341,7 +341,7 @@ def crawl_jyhf_theme_detail(
     )
     return {
         "result": data.to_dict("split"),
-        "theme_id": theme_id,
+        "id": id,
         "size": data.shape[0],
         "status": "success",
         "timestamp": int(time.time())
