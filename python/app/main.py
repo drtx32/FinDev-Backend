@@ -7,7 +7,7 @@ import redis
 import mysql.connector
 from os import environ
 
-from ashare_core.crawler import em_web, ths_web, jyhf_app, jygs_web
+from ashare_core.crawler import em_web, ths_web, ths_app, jyhf_app, jygs_web
 from ashare_core.tool import SessionManager
 
 
@@ -113,7 +113,7 @@ def health_check(services=Depends(get_services)) -> dict[str, Any]:
     }
 
 
-@app.get("/em_stock_history_rank/{symbol}")
+@app.get("/em_guba/stock_history_rank/{symbol}")
 def crawl_em_stock_history_rank(
     symbol: str,
     session=Depends(get_session_manager)
@@ -132,7 +132,58 @@ def crawl_em_stock_history_rank(
     }
 
 
-@app.get("/ths_stock/{symbol}")
+@app.get("/ths_app/plate_stats")
+def crawl_ths_plate_stats(
+    type: Literal['concept', 'industry', 'region', 'style'] | None = None,
+    index: int = 0,
+    pagesize: int = 10,
+    session=Depends(get_session_manager)
+) -> dict[str, Any]:
+    session: SessionManager
+    type_map = {
+        'concept': '概念',
+        'industry': '行业',
+        'region': '地域',
+        'style': '风格'
+    }
+    data = ths_app.plateStats(
+        type_map.get(type),
+        index=index,
+        pagesize=pagesize,
+        session=session.create_or_get("ths_app", "Session")
+    )
+    return {
+        "result": data.to_dict("split"),
+        "size": data.shape[0],
+        "status": "success",
+        "timestamp": int(time.time())
+    }
+
+
+@app.get("/ths_l2/hot_plate_circle")
+def crawl_ths_hot_plate_circle(
+    days: Literal[10, 30] = 30,
+    type: Literal['industry', 'concept'] | None = None,
+    session=Depends(get_session_manager)
+) -> dict[str, Any]:
+    session: SessionManager
+    name_df, code_df, rank_df = ths_app.l2_hotPlateCircle(
+        days=days,
+        type=type,
+        session=session.create_or_get("ths_l2", "Session")
+    )
+    return {
+        "result": {
+            "name": name_df.to_dict("split"),
+            "code": code_df.to_dict("split"),
+            "rank": rank_df.to_dict("split")
+        },
+        "status": "success",
+        "timestamp": int(time.time())
+    }
+
+
+@app.get("/ths_web/stock/{symbol}")
 def crawl_ths_stock(
     symbol: str,
     period: Literal[
@@ -177,7 +228,7 @@ def crawl_ths_stock(
     }
 
 
-@app.get("/em_stock/{symbol}")
+@app.get("/em_web/stock/{symbol}")
 def crawl_em_stock(
     symbol: str,
     period: Literal[
@@ -223,7 +274,7 @@ def crawl_em_stock(
     }
 
 
-@app.get("/jygs_industry")
+@app.get("/jygs_web/industry")
 def crawl_jygs_industry(
     keyword: str = None,
     pagesize: int = 50,
@@ -243,7 +294,7 @@ def crawl_jygs_industry(
     }
 
 
-@app.get("/jyhf_theme")
+@app.get("/jyhf_app/theme_list")
 def crawl_jyhf_theme(
     sort_by: str = "pctChg",
     ascending: bool = False,
@@ -265,7 +316,7 @@ def crawl_jyhf_theme(
     }
 
 
-@app.get("/jyhf_theme/{theme_id}")
+@app.get("/jyhf_app/theme_detail/{theme_id}")
 def crawl_jyhf_theme_detail(
     theme_id: str,
     date: str = None,
