@@ -17,4 +17,4 @@ redis>=4.5.1
 # pydantic>=2.10.3
 
 # 本地tar.gz包
-./local_packages/ashare_core-1.0.6a0.tar.gz
+./local_packages/ashare_core-1.0.6.tar.gz

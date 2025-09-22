@@ -115,11 +115,13 @@ def health_check(services=Depends(get_services)) -> dict[str, Any]:
 
 @app.get("/em_stock_history_rank/{symbol}")
 def crawl_em_stock_history_rank(
-    symbol: str, session=Depends(get_session_manager)
+    symbol: str,
+    session=Depends(get_session_manager)
 ) -> dict[str, Any]:
     session: SessionManager
     data = em_web.stock_history_rank(
-        symbol, session=session.create_or_get("em_web", "Session")
+        symbol, session=session.create_or_get(
+            "em_guba", "Session", use_http=False)
     )
     return {
         "result": data.to_dict("split"),
@@ -235,6 +237,60 @@ def crawl_jygs_industry(
     )
     return {
         "result": data.to_dict("split"),
+        "size": data.shape[0],
+        "status": "success",
+        "timestamp": int(time.time())
+    }
+
+
+@app.get("/jyhf_theme")
+def crawl_jyhf_theme(
+    sort_by: str = "pctChg",
+    ascending: bool = False,
+    authorization: str = None,
+    session=Depends(get_session_manager)
+) -> dict[str, Any]:
+    session: SessionManager
+    data = jyhf_app.themeList(
+        sort_by=sort_by,
+        ascending=ascending,
+        authorization=authorization,
+        session=session.create_or_get("jyhf_app", "Session", use_http=False)
+    )
+    return {
+        "result": data.to_dict("split"),
+        "size": data.shape[0],
+        "status": "success",
+        "timestamp": int(time.time())
+    }
+
+
+@app.get("/jyhf_theme/{theme_id}")
+def crawl_jyhf_theme_detail(
+    theme_id: str,
+    date: str = None,
+    index: int = 0,
+    pagesize: int = 1201,
+    sort_by: str = "pctChg",
+    ascending: bool = False,
+    authorization: str = None,
+    session=Depends(get_session_manager)
+) -> dict[str, Any]:
+    session: SessionManager
+    data = jyhf_app.themeStockPerformance(
+        theme_id=theme_id,
+        date=date,
+        index=index,
+        pagesize=pagesize,
+        sort_by=sort_by,
+        ascending=ascending,
+        authorization=authorization,
+        session=session.create_or_get(
+            "jyhf_app", "Session", use_http=False, check="json")
+    )
+    return {
+        "result": data.to_dict("split"),
+        "theme_id": theme_id,
         "size": data.shape[0],
         "status": "success",
         "timestamp": int(time.time())
