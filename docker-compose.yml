@@ -36,9 +36,9 @@ services:
       - ./mysql/init.sql:/docker-entrypoint-initdb.d/init.sql  # 初始化脚本
     environment:
       - MYSQL_ROOT_PASSWORD=rootpass
-      - MYSQL_DB=appdb
       - MYSQL_USER=appuser
       - MYSQL_PASSWORD=apppass
+      - MYSQL_DATABASE=appdb
     networks:
       - app-network
     restart: unless-stopped

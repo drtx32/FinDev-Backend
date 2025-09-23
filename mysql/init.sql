@@ -1,3 +1,5 @@
+USE appdb;
+
 -- 创建示例表
 CREATE TABLE IF NOT EXISTS users (
     id INT AUTO_INCREMENT PRIMARY KEY,

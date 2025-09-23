@@ -24,3 +24,4 @@ redis-data/
 
 # Custom ignore rules
 python/local_packages/*
+.src/

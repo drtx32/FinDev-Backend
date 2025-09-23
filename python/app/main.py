@@ -22,12 +22,23 @@ def get_redis_client() -> redis.Redis:
 
 
 def get_mysql_connection() -> mysql.connector.MySQLConnection:
-    return mysql.connector.connect(
-        host=environ.get('MYSQL_HOST', 'mysql'),
-        user=environ.get('MYSQL_USER', 'appuser'),
-        password=environ.get('MYSQL_PASSWORD', 'apppass'),
-        database=environ.get('MYSQL_DB', 'appdb')
-    )
+    max_retries = 10
+    delay = 2  # 秒
+    last_err = None
+    for i in range(max_retries):
+        try:
+            return mysql.connector.connect(
+                host=environ.get('MYSQL_HOST', 'mysql'),
+                port=int(environ.get("MYSQL_PORT", 3306)),
+                user=environ.get('MYSQL_USER', 'appuser'),
+                password=environ.get('MYSQL_PASSWORD', 'apppass'),
+                database=environ.get('MYSQL_DATABASE', 'appdb')
+            )
+        except Exception as e:
+            last_err = e
+            print(f"[MySQL] 第{i+1}次连接失败: {e}, {delay}s后重试...")
+            time.sleep(delay)
+    raise last_err
 
 
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, Any]:
@@ -116,12 +127,14 @@ def health_check(services=Depends(get_services)) -> dict[str, Any]:
 @app.get("/em_guba/stock_history_rank")
 def crawl_em_stock_history_rank(
     symbol: str,
+    type: Literal['120d', '0.5y', '1y', '1ly'] = "1y",
     session=Depends(get_session_manager)
 ) -> dict[str, Any]:
     session: SessionManager
     data = em_web.stock_history_rank(
-        symbol, session=session.create_or_get(
-            "em_guba", "Session", use_http=False)
+        symbol,
+        type=type,
+        session=session.create_or_get("em_guba", "Session", use_http=False)
     )
     return {
         "result": data.to_dict("split"),
@@ -274,6 +287,46 @@ def crawl_em_stock(
     }
 
 
+@app.get("/jygs_web/companies")
+def crawl_jygs_companies(
+    keyword: str = None,
+    pagesize: int = 50,
+    session=Depends(get_session_manager)
+) -> dict[str, Any]:
+    session: SessionManager
+    data = jygs_web.get_companies(
+        keyword=keyword,
+        pagesize=pagesize,
+        session=session.create_or_get("jygs_web", "Session", use_http=False)
+    )
+    return {
+        "result": data.to_dict("split"),
+        "size": data.shape[0],
+        "status": "success",
+        "timestamp": int(time.time())
+    }
+
+
+@app.get("/jygs_web/announcement")
+def crawl_jygs_announcement(
+    keyword: str = None,
+    pagesize: int = 50,
+    session=Depends(get_session_manager)
+) -> dict[str, Any]:
+    session: SessionManager
+    data = jygs_web.announcement(
+        keyword=keyword,
+        pagesize=pagesize,
+        session=session.create_or_get("jygs_web", "Session", use_http=False)
+    )
+    return {
+        "result": data.to_dict("split"),
+        "size": data.shape[0],
+        "status": "success",
+        "timestamp": int(time.time())
+    }
+
+
 @app.get("/jygs_web/industry")
 def crawl_jygs_industry(
     keyword: str = None,
@@ -345,4 +398,13 @@ def crawl_jyhf_theme_detail(
         "size": data.shape[0],
         "status": "success",
         "timestamp": int(time.time())
+    }
+
+
+@app.get("/version")
+def get_version() -> dict[str, str]:
+    return {
+        "service": "FinDev-Backend",
+        "version": "0.1.0",
+        "ashare_core": "v1.0.6",
     }
