@@ -13,7 +13,7 @@ services:
       - MYSQL_PORT=3306
       - MYSQL_USER=appuser
       - MYSQL_PASSWORD=apppass
-      - MYSQL_DB=appdb
+      - MYSQL_DATABASE=appdb
     depends_on:
       - mysql
       - redis
@@ -33,7 +33,7 @@ services:
       - "3306:3306"
     volumes:
       - mysql-data:/var/lib/mysql
-      - ./mysql/init.sql:/docker-entrypoint-initdb.d/init.sql  # 初始化脚本
+      - ./mysql/init.sql:/docker-entrypoint-initdb.d/init.sql # 初始化脚本
     environment:
       - MYSQL_ROOT_PASSWORD=rootpass
       - MYSQL_USER=appuser
@@ -63,9 +63,9 @@ services:
       - "443:443"
     volumes:
       - ./nginx/conf:/etc/nginx/conf.d
-      - ./nginx/ssl:/etc/nginx/ssl  # SSL证书目录
-      - ./app/static:/var/www/static  # 静态文件目录
-      - ./app/media:/var/www/media    # 媒体文件目录
+      - ./nginx/ssl:/etc/nginx/ssl # SSL证书目录
+      - ./app/static:/var/www/static # 静态文件目录
+      - ./app/media:/var/www/media # 媒体文件目录
     depends_on:
       - python
     networks:
