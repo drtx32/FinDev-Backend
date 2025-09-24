@@ -4,7 +4,8 @@ from pydantic import BaseModel
 
 import time
 import redis
-import mysql.connector
+# import mysql.connector
+import psycopg
 from os import environ
 
 from ashare_core.crawler import em_web, ths_web, ths_app, jyhf_app, jygs_web
@@ -21,22 +22,24 @@ def get_redis_client() -> redis.Redis:
     return redis.Redis(host=environ.get('REDIS_HOST', 'redis'), port=6379, db=0)
 
 
-def get_mysql_connection() -> mysql.connector.MySQLConnection:
+# 替换: MySQL -> PostgreSQL
+def get_postgres_connection() -> psycopg.Connection:
     max_retries = 10
-    delay = 2  # 秒
+    delay = 2
     last_err = None
     for i in range(max_retries):
         try:
-            return mysql.connector.connect(
-                host=environ.get('MYSQL_HOST', 'mysql'),
-                port=int(environ.get("MYSQL_PORT", 3306)),
-                user=environ.get('MYSQL_USER', 'appuser'),
-                password=environ.get('MYSQL_PASSWORD', 'apppass'),
-                database=environ.get('MYSQL_DATABASE', 'appdb')
+            return psycopg.connect(
+                host=environ.get('POSTGRES_HOST', 'postgres'),
+                port=int(environ.get("POSTGRES_PORT", 5432)),
+                user=environ.get('POSTGRES_USER', 'appuser'),
+                password=environ.get('POSTGRES_PASSWORD', 'apppass'),
+                dbname=environ.get('POSTGRES_DB', 'appdb'),
+                connect_timeout=5
             )
         except Exception as e:
             last_err = e
-            print(f"[MySQL] 第{i+1}次连接失败: {e}, {delay}s后重试...")
+            print(f"[PostgreSQL] 第{i+1}次连接失败: {e}, {delay}s后重试...")
             time.sleep(delay)
     raise last_err
 
@@ -44,7 +47,7 @@ def get_mysql_connection() -> mysql.connector.MySQLConnection:
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, Any]:
     # 初始化连接
     redis_client = get_redis_client()
-    mysql_conn = None
+    pg_conn = None
     session_manager = SessionManager(3600)
     try:
         # 验证 Redis 连接
@@ -53,17 +56,14 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, Any]:
         print(f"Redis 连接失败: {e}")
         redis_client = None
     try:
-        # 验证 MySQL 连接
-        mysql_conn = get_mysql_connection()
-        if not mysql_conn.is_connected():
-            print("MySQL 连接失败")
-            mysql_conn = None
+        # 验证 PostgreSQL 连接
+        pg_conn = get_postgres_connection()
     except Exception as e:
-        print(f"MySQL 连接失败: {e}")
-        mysql_conn = None
+        print(f"PostgreSQL 连接失败: {e}")
+        pg_conn = None
     # 挂载到 app.state
     app.state.redis_client = redis_client
-    app.state.mysql_conn = mysql_conn
+    app.state.pg_conn = pg_conn
     app.state.session_manager = session_manager
     yield
     # 关闭连接
@@ -72,9 +72,9 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, Any]:
             redis_client.close()
         except Exception:
             pass
-    if mysql_conn:
+    if pg_conn:
         try:
-            mysql_conn.close()
+            pg_conn.close()
         except Exception:
             pass
 
@@ -82,8 +82,8 @@ app = FastAPI(lifespan=lifespan)
 
 
 # ============================ 定义 API ============================
-def get_services(request: Request) -> tuple[redis.Redis, mysql.connector.MySQLConnection]:
-    return request.app.state.redis_client, request.app.state.mysql_conn
+def get_services(request: Request) -> tuple[redis.Redis, psycopg.Connection]:
+    return request.app.state.redis_client, request.app.state.pg_conn
 
 
 def get_session_manager(request: Request) -> SessionManager:
@@ -97,11 +97,9 @@ def read_root() -> dict[str, str]:
 
 @app.get("/health")
 def health_check(services=Depends(get_services)) -> dict[str, Any]:
-    redis_client, mysql_conn = services
-    redis_client: redis.Redis
-    mysql_conn: mysql.connector.MySQLConnection
+    redis_client, pg_conn = services
     redis_ok = False
-    mysql_ok = False
+    pg_ok = False
     # 检查 Redis
     if redis_client:
         try:
@@ -109,17 +107,19 @@ def health_check(services=Depends(get_services)) -> dict[str, Any]:
             redis_ok = True
         except Exception:
             pass
-    # 检查 MySQL
-    if mysql_conn:
+    # 检查 PostgreSQL
+    if pg_conn:
         try:
-            mysql_ok = mysql_conn.is_connected()
+            with pg_conn.cursor() as cur:
+                cur.execute("SELECT 1")
+            pg_ok = True
         except Exception:
             pass
     return {
-        "status": "healthy" if (redis_ok and mysql_ok) else "unhealthy",
+        "status": "healthy" if (redis_ok and pg_ok) else "unhealthy",
         "services": {
             "redis": "up" if redis_ok else "down",
-            "mysql": "up" if mysql_ok else "down"
+            "postgres": "up" if pg_ok else "down"
         }
     }
 

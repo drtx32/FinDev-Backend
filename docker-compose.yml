@@ -9,39 +9,43 @@ services:
       - PYTHONUNBUFFERED=1
       - REDIS_HOST=redis
       - REDIS_PORT=6379
-      - MYSQL_HOST=mysql
-      - MYSQL_PORT=3306
-      - MYSQL_USER=appuser
-      - MYSQL_PASSWORD=apppass
-      - MYSQL_DATABASE=appdb
+      - POSTGRES_HOST=postgres
+      - POSTGRES_PORT=5432
+      - POSTGRES_USER=appuser
+      - POSTGRES_PASSWORD=apppass
+      - POSTGRES_DB=appdb
     depends_on:
-      - mysql
-      - redis
-    dns:
-      - 8.8.8.8
-      - 114.114.114.114
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
     ports:
       - "8000:8000"
     networks:
       - app-network
     restart: unless-stopped
 
-  mysql:
-    image: mysql:8.0
-    container_name: mysql-service
+  postgres:
+    image: postgres:15-alpine
+    container_name: postgres-service
     ports:
-      - "3306:3306"
+      - "5432:5432"
     volumes:
-      - mysql-data:/var/lib/mysql
-      - ./mysql/init.sql:/docker-entrypoint-initdb.d/init.sql # 初始化脚本
+      - postgres-data:/var/lib/postgresql/data
+      - ./postgres/init.sql:/docker-entrypoint-initdb.d/init.sql
     environment:
-      - MYSQL_ROOT_PASSWORD=rootpass
-      - MYSQL_USER=appuser
-      - MYSQL_PASSWORD=apppass
-      - MYSQL_DATABASE=appdb
+      - POSTGRES_USER=appuser
+      - POSTGRES_PASSWORD=apppass
+      - POSTGRES_DB=appdb
     networks:
       - app-network
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U appuser -d appdb"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 15s
 
   redis:
     image: redis:alpine
@@ -54,7 +58,6 @@ services:
       - app-network
     restart: unless-stopped
 
-  # Nginx服务
   nginx:
     image: nginx:alpine
     container_name: nginx-service
@@ -63,9 +66,9 @@ services:
       - "443:443"
     volumes:
       - ./nginx/conf:/etc/nginx/conf.d
-      - ./nginx/ssl:/etc/nginx/ssl # SSL证书目录
-      - ./app/static:/var/www/static # 静态文件目录
-      - ./app/media:/var/www/media # 媒体文件目录
+      - ./nginx/ssl:/etc/nginx/ssl
+      - ./app/static:/var/www/static
+      - ./app/media:/var/www/media
     depends_on:
       - python
     networks:
@@ -77,5 +80,5 @@ networks:
     driver: bridge
 
 volumes:
-  mysql-data:
+  postgres-data:
   redis-data:

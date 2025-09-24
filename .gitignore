@@ -21,6 +21,7 @@ env/
 # Docker volumes
 mysql-data/
 redis-data/
+postgres-data/
 
 # Custom ignore rules
 python/local_packages/*
